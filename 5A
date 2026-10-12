@@ -1,0 +1,87 @@
+import weka.core.Instances;
+import weka.core.converters.ConverterUtils.DataSource;
+
+import weka.associations.Apriori;
+import weka.associations.FPGrowth;
+
+import weka.classifiers.Evaluation;
+import weka.classifiers.trees.J48;
+import weka.classifiers.trees.RandomForest;
+
+import weka.classifiers.evaluation.ThresholdCurve;
+
+import java.util.Random;
+
+public class WekaKnowledgeFlowDemo {
+
+    public static void main(String[] args) throws Exception {
+
+        // Load dataset
+        Instances data = new DataSource(
+            "weather.nominal.arff"
+        ).getDataSet();
+
+        System.out.println("Dataset: " + data.relationName());
+        System.out.println("Instances: " + data.numInstances());
+
+        // PART 1: Apriori association rules
+        Apriori apriori = new Apriori();
+        apriori.setNumRules(10);
+        apriori.buildAssociations(data);
+
+        System.out.println("\n===== APRIORI RULES =====");
+        System.out.println(apriori);
+
+        // PART 2: FP-Growth association rules
+        FPGrowth fpGrowth = new FPGrowth();
+        fpGrowth.buildAssociations(data);
+
+        System.out.println("\n===== FP-GROWTH RULES =====");
+        System.out.println(fpGrowth);
+
+        // Set class attribute
+        data.setClassIndex(data.numAttributes() - 1);
+
+        // PART 3: J48 cross-validation
+        J48 j48 = new J48();
+        Evaluation evalJ48 = new Evaluation(data);
+
+        evalJ48.crossValidateModel(
+            j48, data, 10, new Random(1)
+        );
+
+        System.out.println("\n===== J48 CROSS-VALIDATION =====");
+        System.out.println(evalJ48.toSummaryString());
+        System.out.println(evalJ48.toClassDetailsString());
+        System.out.println(evalJ48.toMatrixString());
+
+        // PART 4: Random Forest cross-validation
+        RandomForest rf = new RandomForest();
+        Evaluation evalRF = new Evaluation(data);
+
+        evalRF.crossValidateModel(
+            rf, data, 10, new Random(1)
+        );
+
+        System.out.println("\n===== RANDOM FOREST =====");
+        System.out.println(evalRF.toSummaryString());
+
+        // PART 5: ROC and AUC values
+        System.out.println("\n===== ROC / AUC =====");
+
+        for (int i = 0; i < data.numClasses(); i++) {
+
+            System.out.println(
+                data.classAttribute().value(i)
+                + " J48 AUC: "
+                + evalJ48.areaUnderROC(i)
+            );
+
+            System.out.println(
+                data.classAttribute().value(i)
+                + " Random Forest AUC: "
+                + evalRF.areaUnderROC(i)
+            );
+        }
+    }
+}
